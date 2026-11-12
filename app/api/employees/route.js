@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server";
-import pool from "@/lib/sqldb";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request) {
   try {
@@ -8,17 +8,22 @@ export async function POST(request) {
     const body = await request.json();
     const { name, email, department, departmentId, salary } = body;
 
-    // SQL query execute karna
-    const [result] = await pool.execute(
-      `INSERT INTO employees (name, email, department, department_id, salary)
-       VALUES (?, ?, ?, ?)`,
-      [name, email, department, departmentId, salary]
-    );
+    console.log("departmentId:", departmentId)
+    // Prisma query  se employee create karna
+    const newEmployee = await prisma.employee.create({
+      data: {
+        name, email, department,
+         departmentId: departmentId ?Number(departmentId) : null,
+        salary:parseFloat(salary),
+        
+      },
+    });
+   
 
     return NextResponse.json(
       {
         message: "Employee added successfully",
-        employeeId: result.insertId,
+        employeeId: newEmployee.id,
       },
       { status: 201 }
     );
@@ -34,23 +39,15 @@ export async function POST(request) {
 
 export async function GET() {
     try {
-        const [rows] = await pool.execute(`
+        const employees = await prisma.employee.findMany({
 
-            SELECT 
-                e.id,
-                e.name,
-                e.email,
-                e.department_id,
-                d.name AS department,
-                e.salary
-            FROM employees e
-            LEFT JOIN departments d
-               ON e.department_id = d.id
-            ORDER BY e.id DESC
+        include: {
+          department: true,
+        },
 
-        `);
+        });
 
-        return NextResponse.json(rows,{status: 200});
+        return NextResponse.json(employees,{status: 200});
         
     } catch (error) {
         console.error("Fetch employees error:", error);

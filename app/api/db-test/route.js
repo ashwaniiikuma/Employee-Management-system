@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 
 export async function GET(){
     try{
-        const [rows] = await pool.query("SELECT 1 AS connected")
+        const rows = await prisma.$queryRaw("SELECT 1 AS connected")
     
     return NextResponse.json({
         success: true,
-        message: "MySQL is connected successfully!",
+        message: "Aiven Cloud MySQL is connected successfully via Prisma!",
         data: rows,
     });
     }catch(error){

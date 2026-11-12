@@ -32,19 +32,24 @@ export default function AddEmployeePage(){
         headers:{
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          departmentId: formData.departmentId? Number(formData.departmentId): null,
+          salary: parseFloat(formData.salary),
+        }),
       });
 
       const data = await response.json();
 
-      alert("Employee added successfully!");
+  
 
          if(!response.ok){
         throw new Error(data.message || "Failed to add employee");
 
       }
-
+          alert("Employee added successfully!");
       router.push("/employees");
+      router.refresh();
     }catch (err){
       setError(err.message || "Something went Wrong");
     }finally{
@@ -69,8 +74,8 @@ export default function AddEmployeePage(){
         setFormData({
           name: data.name,
           email: data.email,
-          departmentId: string(data.department_Id),
-          salary: string(data.salary),
+          departmentId: String(data.departmentId || ""),
+          salary: String(data.salary || ""),
         });
       }catch(err){
         setError(err.message);

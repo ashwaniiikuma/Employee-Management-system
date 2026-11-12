@@ -1,9 +1,9 @@
-import pool from "@/lib/sqldb";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 export async function GET() {
     
     try{
-        const [stats] = await pool.execute(
+        const statsRaw = await prisma.$queryRaw
             ` 
             SELECT
             (SELECT COUNT(*) FROM employees) AS totalEmployees,
@@ -16,10 +16,12 @@ export async function GET() {
             (SELECT COALESCE(AVG(salary),0)
             FROM employees) AS averageSalary
             `
-        );
+        ;
+
+        const stats = statsRaw[0] || {};
 
         //Recent employees
-        const [recentEmployees] = await pool.execute(`
+        const recentEmployees = await prisma.$queryRaw`
             SELECT
             e.id,
             e.name,
@@ -28,18 +30,18 @@ export async function GET() {
             e.salary
             FROM employees e
             LEFT JOIN departments d
-                ON e.department_id = d.id
+                ON e.departmentId = d.id
                 ORDER BY e.id DESC
                 LIMIT 5
-            `)
+            `;
 
             return NextResponse.json(
                 {
                     statistics:{
-                        totalEmployees: Number(stats[0].totalEmployees),
-                        totalDepartments: Number(stats[0].totalDepartments),
-                        monthlyPayroll: Number(stats[0].monthlyPayroll),
-                        averageSalary: Number(stats[0]. averageSalary),
+                        totalEmployees: Number(stats.totalEmployees || 0),
+                        totalDepartments: Number(stats.totalDepartments || 0),
+                        monthlyPayroll: Number(stats.monthlyPayroll || 0),
+                        averageSalary: Number(stats. averageSalary || 0),
                     },
                     recentEmployees,
                 },

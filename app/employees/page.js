@@ -20,7 +20,7 @@ export default function EmployeesPage() {
   const totalEmployee = employees.length;
 
   const totalDepartments = new Set(
-    employees.map((employee)=> employee.department_id)
+    employees.map((employee)=> employee.departmentId)
   ).size;
 
   const monthlyPayroll = employees.reduce(
@@ -201,7 +201,7 @@ export default function EmployeesPage() {
                     employees.map((employee) => (
                       <tr key={employee.id}>
                         <td className="px-5 py-4">{employee.name}</td>
-                        <td className="px-5 py-4">{employee.department}</td>
+                        <td className="px-5 py-4">{employee.department?.name}</td>
                         <td className="px-5 py-4">
                           ₹{Number(employee.salary).toLocaleString("en-IN")}
                         </td>

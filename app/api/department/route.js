@@ -1,23 +1,23 @@
 
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import pool from "@/lib/sqldb";
-
 export async function GET() {
   try {
 
-    const [dbInfo] = await pool.execute(`
-  SELECT DATABASE() AS dbName
-`);
+        const [dbInfo] = await pool.execute(`
+        SELECT DATABASE() AS dbName
+      `);
 
-const [departmentCheck] = await pool.execute(`
-  SELECT * FROM departments
-`);
+      const [departmentCheck] = await pool.execute(`
+        SELECT * FROM departments
+      `);
 
-console.log("Connected Database:", dbInfo);
-console.log("Departments Found:", departmentCheck);
+      console.log("Connected Database:", dbInfo);
+      console.log("Departments Found:", departmentCheck);
 
     // Fetch departments with employee counts
-    const [departments] = await pool.execute(`
+    const departmentsRaw = await prisma.$queryRaw`
       SELECT
         d.id,
         d.name,
@@ -27,7 +27,7 @@ console.log("Departments Found:", departmentCheck);
         COUNT(e.id) AS employeeCount
       FROM departments d
       LEFT JOIN employees e
-        ON d.id = e.department_id
+        ON d.id = e.departmentId
       GROUP BY
         d.id,
         d.name,
@@ -35,22 +35,25 @@ console.log("Departments Found:", departmentCheck);
         d.description,
         d.status
       ORDER BY d.id ASC
-    `);
+    `;
 
-    // Calculate department statistics
-    const totalDepartments = departments.length;
+   const departments = departmentsRaw.map((dept) => ({ // ✅ Fixed: Correct arrow function syntax =>
+      ...dept,
+      employeeCount: Number(dept.employeeCount || 0),
+    }));
+        const totalDepartments = departmentCheck.length;
 
-    const activeTeams = departments.filter(
-      (department) => department.status === "Active"
-    ).length;
+      const activeTeams = departments.filter(
+        (department) => department.status === "Active"
+      ).length
 
-    const [assignedResult] = await pool.execute(`
+    const assignedResult = await prisma.$queryRaw`
       SELECT COUNT(*) AS total
       FROM employees
-      WHERE department_id IS NOT NULL
-    `);
+      WHERE departmentId IS NOT NULL
+    `;
 
-    const employeesAssigned = Number(assignedResult[0].total);
+    const employeesAssigned = Number(assignedResult[0].total || 0);
 
     return NextResponse.json(
       {
@@ -65,7 +68,7 @@ console.log("Departments Found:", departmentCheck);
     );
 
   } catch (error) {
-    console.error("Department API error:", error);
+    console.Error("Department API error:", error);
 
     return NextResponse.json(
       { message: "Failed to fetch departments" },

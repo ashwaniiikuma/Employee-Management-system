@@ -1,30 +1,23 @@
 import { NextResponse } from "next/server";
-import pool from "@/lib/sqldb";
+import { prisma } from "@/lib/prisma";
 
 //GET : Fetch one employee by ID
 export async function GET(request, {params}){
     try{
         const {id} = await params;
 
-        if(!/^\d+$/.test(id) || Number(id)< 1){
-            return NextResponse.json(
-                {message: "Invalid employee ID"},
-                {status: 400}
-            );
-        }
+      const employee = await prisma.employee.findUnique({
+        where: {id: String(id)},
+      });
 
-        const [rows] = await pool.execute(
-            "SELECT * FROM employees WHERE id = ?",
-            [Number(id)]
+      if(!employee){
+        return NextResponse.json(
+            {message: "Employee not found"},
+            {status: 404},
         );
+      }
 
-        if(rows.length === 0){
-            return NextResponse.json(
-                {message: "Employee not found"},
-                {status: 404}
-            );
-        }
-        return NextResponse.json(rows[0], {status: 200});
+        return NextResponse.json(employee, {status: 200});
     }catch(error){
         console.error("Fetch employee error:", error);
         return NextResponse.json(
@@ -34,16 +27,11 @@ export async function GET(request, {params}){
     }
 } 
 
+
+    //Update employee by ID
 export async function PUT(request, {params}){
     try{
         const {id} = await params;
-
-        if(!/^\d+$/.test(id) || Number(id)< 1){
-            return NextResponse.json(
-                {message: "Invalid Employee ID"},
-                {status: 400}
-            );
-        }
 
         const {name, email, department, salary} = await request.json();
 
@@ -63,39 +51,36 @@ export async function PUT(request, {params}){
             );
         }
 
-        const[existing] = await pool.execute(
-            "SELECT id FROM emolpyees WHERE id = ?",
-            [Number(id)]
-        );
-        if(existing.length === 0){
+        const existing = await prisma.employee.findUnique({
+           where: {id: String(id)},
+        });
+
+        if(!existing){
             return NextResponse.json(
                 {message: "Emplooyee not found"},
                 {status: 404}
             );
         }
 
-            await pool.execute(
-            `UPDATE employees
-            SET name = ?, email = ?, department = ?, salary = ?
-            WHERE id = ?`,
-            [
-                name.trim(),
-                email.trim(),
-                department.trim(),
-                Number(salary),
-                Number(id),
-             ]
-            );
+           const updatedEmployee = await prisma.employee.update({
+            where: {id: String(id) },
+            data:{
+                name: name.trim(),
+                email: email.trim(),
+                department: department.trim(),
+                salary: Number(salary),
+            },
+           });
 
             return NextResponse.json(
-                {message: "Employee updated Successfully"},
+                {message: "Employee updated Successfully", employee: updatedEmployee},
                 {status: 200}
             );
 
     }catch (error){
         console.error("Update employee error:", error);
 
-        if(error.code === "ER_DUP_ENTRY"){
+        if(error.code === "P2002"){
             return NextResponse.json(
                 {message: "This email is already registered"},
                 {status: 409}
@@ -113,25 +98,19 @@ export async function DELETE(request, {params}){
     try{
         const {id} = await params;
 
-        if(/^\d+$/.test(id) || Number(id)<1){
-            return NextResponse.json(
-                {message: "Invalid employee ID"},
-                {status: 400}
-            );
+        try{
+            await prisma.employee.delete({
+                where: {id: String(id)},
+            });
+        }catch (prismaError) {
+            if(prismaError.code === "p2025"){
+                return NextResponse.json(
+                    {message: "Employee not found"},
+                    {status: 404}
+                );
+            }
+            throw prismaError;
         }
-
-        const [result] = await pool.execute(
-            "DELETE FROM employees WHERE id = ?",
-            [Number(id)]
-        );
-
-        if(result.affectedRows === 0){
-            return NextResponse.json(
-                {message: "Employees is not found"},
-                {status: 404}
-            );
-        }
-
         return NextResponse.json(
             {message: "Employee is deleted successfully"},
             {status: 200}
